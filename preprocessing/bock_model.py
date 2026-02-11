@@ -13,14 +13,14 @@ from madmom.audio.signal import Signal
 from madmom.features.beats import RNNBeatProcessor
 from madmom.features.tempo import TempoEstimationProcessor
 
-dir_name = 'spotify_previews'
+dir_name = 'data/spotify_previews'
 dir_folders = os.listdir(path=dir_name)
 
 counter = 0
-pathExists = os.path.exists('features/bock_completed_folders.csv')
+pathExists = os.path.exists('data/features/bock_completed_folders.csv')
 if pathExists:
-   completed_folders = pd.read_csv('features/bock_completed_folders.csv')['folder'].tolist()
-   existing_data = pd.read_csv('features/bock_model.csv') 
+   completed_folders = pd.read_csv('data/features/bock_completed_folders.csv')['folder'].tolist()
+   existing_data = pd.read_csv('data/features/bock_model.csv') 
 else:
     existing_data = pd.DataFrame(columns=['Track', 'tempo','clarity'])
     completed_folders = []
@@ -46,7 +46,7 @@ for folder in new_folders:
     temp = {'Track':track_filenames,'tempo':tempi,'clarity':clarity}
     temp_df = pd.DataFrame(temp)
     existing_data = pd.concat([existing_data, temp_df], ignore_index=True)
-    existing_data.to_csv('features/bock_model.csv', index=False)
+    existing_data.to_csv('data/features/bock_model.csv', index=False)
     pd.DataFrame({'folder': completed_folders}).to_csv(
-    'features/bock_completed_folders.csv',
+    'data/features/bock_completed_folders.csv',
     index=False)
