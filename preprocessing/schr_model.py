@@ -8,9 +8,9 @@ Created on Mon Jan 29 11:02:06 2024
 
 #install tempocnn
 import os
+import pandas as pd
 from tempocnn.classifier import TempoClassifier
 from tempocnn.feature import read_features
-import pandas as pd
 
 model_name = 'cnn'
 dir_name = 'spotify_previews'
