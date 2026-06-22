@@ -101,10 +101,10 @@ for csv_file in csv_files:
     print(csv_file)
     save_loc = 'data/spotify_previews/'+csv_file[:-4]
     for i in data.index:
-        if isinstance(data.loc[i,'Preview Url'], str):
+        if isinstance(data.loc[i,'uri'], str):
            time.sleep(0.75) 
            try:
-               download_track(data.loc[i,'id'],save_loc,data.loc[i,'Preview Url'])        
+               download_track(data.loc[i,'id'],save_loc,data.loc[i,'uri'])        
            except:
                print('Error in retrieving excerpts')
     completed_csvs.append(csv_file)
@@ -112,3 +112,19 @@ for csv_file in csv_files:
         for item in completed_csvs:
             f.write(item + "\n")
 
+#check number of unique previews
+all_urls = set()
+for csv_file in csv_files:
+    rows = []
+    with open(path+csv_file, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            # parse the single CSV record in 'line' as fields:
+            reader = csv.reader(StringIO(line), delimiter=',', quotechar='"')
+            parsed = next(reader)
+            rows.append(parsed)
+    data = pd.DataFrame(rows)
+    data.columns = data.iloc[0,:]
+    data=data.drop(index=0)
+    urls = data['uri'].dropna()
+    urls = urls[urls.apply(lambda x: isinstance(x, str))]
+    all_urls.update(urls.tolist())
