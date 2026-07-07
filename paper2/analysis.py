@@ -8,6 +8,7 @@ Created on Mon Jun 22 22:57:13 2026
 
 import pandas as pd
 import re
+import numpy as np
 
 data_dir = 'workingFiles.xlsx'
 
@@ -43,3 +44,36 @@ print('Bock missing:{}'.format(sum(data['Bock'].isna())))
 data['TempoCNN'] = data['preview'].map(
     tempocnn.set_index('Track')['tempo'])
 print('TempoCNN missing:{}'.format(sum(data['TempoCNN'].isna())))
+
+def compute_tempo_accuracy(gt, pred):
+    gt = pd.to_numeric(gt, errors='coerce')
+    pred = pd.to_numeric(pred, errors='coerce')
+
+    # avoid division issues
+    mask = gt > 0
+    rel_err = np.abs(gt - pred) / gt
+    acc0 = (rel_err <= 0.02) & mask
+    acc1 = (rel_err <= 0.04) & mask
+
+    # octave-aware errors
+    rel_err_half = np.abs(gt - pred / 2) / gt
+    rel_err_double = np.abs(gt - pred * 2) / gt
+
+    acc2 = (
+        (rel_err <= 0.04) |
+        (rel_err_half <= 0.04) |
+        (rel_err_double <= 0.04)
+    ) & mask
+
+    return pd.DataFrame({
+        'Acc0': acc0.astype(int),
+        'Acc1': acc1.astype(int),
+        'Acc2': acc2.astype(int)
+    })
+
+result = compute_tempo_accuracy(
+    data['Tempo'],
+    data['TempoCNN'])
+
+data = pd.concat([data, result], axis=1)
+
