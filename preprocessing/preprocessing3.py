@@ -146,7 +146,7 @@ print('String N: {}'.format(len(data)))
 data = data.dropna(subset=['Tempo'])
 print('Missing N: {}'.format(len(data)))
 print('Number of Non-music tracks : {}'.format(sum(data['Skit / Non-music track']==1)))
-data = data[~data['Skit / Non-music track']==1]
+data = data[~(data['Skit / Non-music track'] == 1)]
 print('Non-music tracks N: {}'.format(len(data)))
 data = data[data['Tempo']!=0]
 data = data[data['Tempo']>30]
