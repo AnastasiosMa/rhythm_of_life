@@ -10,40 +10,36 @@ import pandas as pd
 import re
 import numpy as np
 
-data_dir = 'workingFiles.xlsx'
-features_dir = 'data/features/'
+data_dir = 'ccsWorkingFiles.xlsx'
+features_dir = 'data/ccsFeatures/'
     
 data = pd.read_excel('data/preprocessed3/'+data_dir)
-spotify = pd.read_csv(features_dir+'spotify_model.csv').drop_duplicates(subset='Track')
-bock = pd.read_csv(features_dir+'bock_model.csv').drop_duplicates(subset='Track')
+
+data = data.dropna(subset=['trackID'])
+print('Missing N: {}'.format(len(data)))
+
 mirtoolbox = pd.read_csv(features_dir+'mirtempo.csv').drop_duplicates(subset='Track')
-tempocnn = pd.read_csv(features_dir+'schr_model.csv').drop_duplicates(subset='Track')
+tempocnn = pd.read_csv(features_dir+'schr_model.csv').drop_duplicates(subset='name')
 librosa = pd.read_csv(features_dir+'librosa_model.csv').drop_duplicates(subset='Track')
 
 #remove .mp3
 mirtoolbox['Track'] = (mirtoolbox['Track']
     .str.replace(r'.mp3', '', regex=True, flags=re.IGNORECASE))
-bock['Track'] = (bock['Track']
-    .str.replace(r'.mp3', '', regex=True, flags=re.IGNORECASE))
-tempocnn['Track'] = (tempocnn['Track']
-    .str.replace(r'.mp3', '', regex=True, flags=re.IGNORECASE))
+tempocnn['name'] = (tempocnn['name']
+    .str.replace(r'.mp4', '', regex=True, flags=re.IGNORECASE))
 librosa['Track'] = (librosa['Track']
     .str.replace(r'.mp3', '', regex=True, flags=re.IGNORECASE))
 
-data['Spotify'] = data['preview'].map(
-    spotify.set_index('Track')['tempo'])
-print('Spotify missing:{}'.format(sum(data['Spotify'].isna())))
-data['MIRToolbox'] = data['preview'].map(
+data = data.rename(columns={'tempo': 'Spotify'})
+
+data['MIRToolbox'] = data['trackID'].map(
     mirtoolbox.set_index('Track')['mirtempo'])
 print('MIRToolbox missing:{}'.format(sum(data['MIRToolbox'].isna())))
-data['Librosa'] = data['preview'].map(
+data['Librosa'] = data['trackID'].map(
     librosa.set_index('Track')['tempo'])
 print('Librosa missing:{}'.format(sum(data['Librosa'].isna())))
-data['Bock'] = data['preview'].map(
-    bock.set_index('Track')['tempo'])
-print('Bock missing:{}'.format(sum(data['Bock'].isna())))
-data['TempoCNN'] = data['preview'].map(
-    tempocnn.set_index('Track')['tempo'])
+data['TempoCNN'] = data['playlistCode'].map(
+    tempocnn.set_index('name')['tempo'])
 print('TempoCNN missing:{}'.format(sum(data['TempoCNN'].isna())))
 
 def compute_tempo_accuracy(gt, pred):
@@ -76,7 +72,7 @@ result = compute_tempo_accuracy(
     data['Tempo'],
     data['TempoCNN'])
 
-tempo_cols = ['Spotify','MIRToolbox','Librosa', 'Bock','TempoCNN']
+tempo_cols = ['Spotify','MIRToolbox','Librosa', 'TempoCNN']
 
 gt_col = 'Tempo'
 
@@ -104,5 +100,5 @@ summary = summary.sort_values(
 summary = summary.round(2)
 print(summary)
 
-summary.to_excel('paper2/res.xlsx',index=False)
-data.to_excel('paper2/preprocessed_data.xlsx',index=False)
+summary.to_excel('paper2/ccs_res.xlsx',index=False)
+data.to_excel('paper2/ccs_preprocessed_data.xlsx',index=False)
