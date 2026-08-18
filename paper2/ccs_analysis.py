@@ -9,6 +9,7 @@ Created on Mon Jun 22 22:57:13 2026
 import pandas as pd
 import re
 import numpy as np
+import matplotlib.pyplot as plt
 
 data_dir = 'ccsWorkingFiles.xlsx'
 features_dir = 'data/ccsFeatures/'
@@ -19,6 +20,7 @@ data = data.dropna(subset=['trackID'])
 print('Missing N: {}'.format(len(data)))
 
 mirtoolbox = pd.read_csv(features_dir+'mirtempo.csv').drop_duplicates(subset='Track')
+bock = pd.read_csv(features_dir+'bock_model.csv').drop_duplicates(subset='Track')
 tempocnn = pd.read_csv(features_dir+'schr_model.csv').drop_duplicates(subset='name')
 librosa = pd.read_csv(features_dir+'librosa_model.csv').drop_duplicates(subset='Track')
 
@@ -28,6 +30,8 @@ mirtoolbox['Track'] = (mirtoolbox['Track']
 tempocnn['name'] = (tempocnn['name']
     .str.replace(r'.mp4', '', regex=True, flags=re.IGNORECASE))
 librosa['Track'] = (librosa['Track']
+    .str.replace(r'.mp3', '', regex=True, flags=re.IGNORECASE))
+bock['Track'] = (bock['Track']
     .str.replace(r'.mp3', '', regex=True, flags=re.IGNORECASE))
 
 data = data.rename(columns={'tempo': 'Spotify'})
@@ -41,6 +45,9 @@ print('Librosa missing:{}'.format(sum(data['Librosa'].isna())))
 data['TempoCNN'] = data['playlistCode'].map(
     tempocnn.set_index('name')['tempo'])
 print('TempoCNN missing:{}'.format(sum(data['TempoCNN'].isna())))
+data['Böck'] = data['trackID'].map(
+    bock.set_index('Track')['tempo'])
+print('Böck missing:{}'.format(sum(data['Böck'].isna())))
 
 def compute_tempo_accuracy(gt, pred):
     gt = pd.to_numeric(gt, errors='coerce')
@@ -72,7 +79,7 @@ result = compute_tempo_accuracy(
     data['Tempo'],
     data['TempoCNN'])
 
-tempo_cols = ['Spotify','MIRToolbox','Librosa', 'TempoCNN']
+tempo_cols = ['Spotify','MIRToolbox','Librosa', 'TempoCNN','Böck']
 
 gt_col = 'Tempo'
 
@@ -102,3 +109,71 @@ print(summary)
 
 summary.to_excel('paper2/ccs_res.xlsx',index=False)
 data.to_excel('paper2/ccs_preprocessed_data.xlsx',index=False)
+
+#%%Secondary analysis
+# Centers: 40, 50, ..., 200
+centers = np.arange(40, 201, 10)
+# Edges: 35, 45, ..., 205
+bin_edges = np.arange(35, 206, 10)
+
+data['TempoBin'] = pd.cut(data['Tempo'], bins=bin_edges,labels=centers,
+                   right=False)
+
+tempo_cols = ['Spotify', 'MIRToolbox', 'Librosa', 'TempoCNN','Böck']
+
+bin_results = []
+
+for alg in tempo_cols:
+
+    valid = data[['Tempo', 'TempoBin', alg]].dropna()
+
+    for bin_center, group in valid.groupby('TempoBin'):
+
+        metrics = compute_tempo_accuracy(
+            group['Tempo'],
+            group[alg])
+
+        bin_results.append({
+            'Algorithm': alg,
+            'TempoBin': int(bin_center),
+            'N': len(group),
+            'Acc0': metrics['Acc0'].mean() * 100,
+            'Acc1': metrics['Acc1'].mean() * 100,
+            'Acc2': metrics['Acc2'].mean() * 100})
+
+bin_summary = pd.DataFrame(bin_results)
+
+acc1_table = bin_summary.pivot(
+    index='TempoBin',
+    columns='Algorithm',
+    values='Acc1')
+
+metrics = ['Acc0', 'Acc1', 'Acc2']
+
+fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+
+for ax, metric in zip(axes, metrics):
+
+    pivot = bin_summary.pivot(
+        index='TempoBin',
+        columns='Algorithm',
+        values=metric
+    )
+
+    for alg in pivot.columns:
+        ax.plot(
+            pivot.index.astype(int),
+            pivot[alg],
+            marker='o',
+            label=alg
+        )
+
+    ax.set_ylabel(f'{metric} (%)')
+    ax.set_title(metric)
+    ax.grid(True, alpha=0.3)
+
+axes[0].legend(title='Algorithm')
+axes[-1].set_xlabel('Ground-truth Tempo Bin Center (BPM)')
+
+plt.tight_layout()
+plt.show()

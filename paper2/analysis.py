@@ -9,6 +9,7 @@ Created on Mon Jun 22 22:57:13 2026
 import pandas as pd
 import re
 import numpy as np
+import matplotlib.pyplot as plt
 
 data_dir = 'workingFiles.xlsx'
 features_dir = 'data/features/'
@@ -106,3 +107,68 @@ print(summary)
 
 summary.to_excel('paper2/res.xlsx',index=False)
 data.to_excel('paper2/preprocessed_data.xlsx',index=False)
+#%%Secondary analysis
+# Centers: 40, 50, ..., 200
+centers = np.arange(40, 201, 10)
+# Edges: 35, 45, ..., 205
+bin_edges = np.arange(35, 206, 10)
+
+data['TempoBin'] = pd.cut(data['Tempo'], bins=bin_edges,labels=centers,
+                   right=False)
+
+bin_results = []
+
+for alg in tempo_cols:
+
+    valid = data[['Tempo', 'TempoBin', alg]].dropna()
+
+    for bin_center, group in valid.groupby('TempoBin'):
+
+        metrics = compute_tempo_accuracy(
+            group['Tempo'],
+            group[alg])
+
+        bin_results.append({
+            'Algorithm': alg,
+            'TempoBin': int(bin_center),
+            'N': len(group),
+            'Acc0': metrics['Acc0'].mean() * 100,
+            'Acc1': metrics['Acc1'].mean() * 100,
+            'Acc2': metrics['Acc2'].mean() * 100})
+
+bin_summary = pd.DataFrame(bin_results)
+
+acc1_table = bin_summary.pivot(
+    index='TempoBin',
+    columns='Algorithm',
+    values='Acc1')
+
+metrics = ['Acc0', 'Acc1', 'Acc2']
+
+fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+
+for ax, metric in zip(axes, metrics):
+
+    pivot = bin_summary.pivot(
+        index='TempoBin',
+        columns='Algorithm',
+        values=metric
+    )
+
+    for alg in pivot.columns:
+        ax.plot(
+            pivot.index.astype(int),
+            pivot[alg],
+            marker='o',
+            label=alg
+        )
+
+    ax.set_ylabel(f'{metric} (%)')
+    ax.set_title(metric)
+    ax.grid(True, alpha=0.3)
+
+axes[0].legend(title='Algorithm')
+axes[-1].set_xlabel('Ground-truth Tempo Bin Center (BPM)')
+
+plt.tight_layout()
+plt.show()
